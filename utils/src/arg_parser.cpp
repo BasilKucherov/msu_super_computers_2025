@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 
+namespace utils {
 WaveParams ArgParser::parse(int argc, char *argv[]) {
   for (int i = 1; i < argc; ++i) {
     if (std::strcmp(argv[i], "--help") == 0 ||
@@ -193,3 +194,4 @@ void ArgParser::computeMissingTimeParam(WaveParams &params, bool hasTau,
     params.tau = params.T / static_cast<double>(params.K);
   }
 }
+} // namespace utils

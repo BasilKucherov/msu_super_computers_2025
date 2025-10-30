@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <string>
 
+namespace utils {
 struct WaveParams {
   double Lx;
   double Ly;
@@ -34,5 +35,6 @@ private:
   static void computeMissingTimeParam(WaveParams &params, bool hasTau,
                                       bool hasK);
 };
+} // namespace utils
 
 #endif

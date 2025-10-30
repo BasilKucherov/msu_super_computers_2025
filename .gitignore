@@ -2,6 +2,7 @@
 *.o
 test_runner
 *.dSYM/
+build/
 
 # VS Code
 .vscode/*

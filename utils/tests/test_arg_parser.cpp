@@ -26,7 +26,7 @@ TEST(ArgParserTest, ValidInputWithTau) {
                                    "--tau",   "0.1"};
   char **argv = makeArgv(args);
 
-  WaveParams params = ArgParser::parse(args.size(), argv);
+  utils::WaveParams params = utils::ArgParser::parse(args.size(), argv);
 
   EXPECT_DOUBLE_EQ(params.Lx, 1.0);
   EXPECT_DOUBLE_EQ(params.Ly, 2.0);
@@ -48,7 +48,7 @@ TEST(ArgParserTest, ValidInputWithK) {
                                    "--K",     "50"};
   char **argv = makeArgv(args);
 
-  WaveParams params = ArgParser::parse(args.size(), argv);
+  utils::WaveParams params = utils::ArgParser::parse(args.size(), argv);
 
   EXPECT_EQ(params.K, 50);
   EXPECT_DOUBLE_EQ(params.tau, 0.1);
@@ -63,7 +63,7 @@ TEST(ArgParserTest, ComputeKWithNonDivisibleTau) {
                                    "--tau",   "0.3"};
   char **argv = makeArgv(args);
 
-  WaveParams params = ArgParser::parse(args.size(), argv);
+  utils::WaveParams params = utils::ArgParser::parse(args.size(), argv);
 
   EXPECT_DOUBLE_EQ(params.tau, 0.3);
   EXPECT_EQ(params.K, 34);
@@ -75,7 +75,7 @@ TEST(ArgParserTest, MissingRequiredParam) {
   std::vector<std::string> args = {"program", "--Lx", "1.0", "--Ly", "1.0"};
   char **argv = makeArgv(args);
 
-  EXPECT_THROW({ ArgParser::parse(args.size(), argv); }, ParserException);
+  EXPECT_THROW({ utils::ArgParser::parse(args.size(), argv); }, utils::ParserException);
 
   freeArgv(argv, args.size());
 }
@@ -87,7 +87,7 @@ TEST(ArgParserTest, NegativeLx) {
       "1.0",     "--tau", "0.1"};
   char **argv = makeArgv(args);
 
-  EXPECT_THROW({ ArgParser::parse(args.size(), argv); }, ParserException);
+  EXPECT_THROW({ utils::ArgParser::parse(args.size(), argv); }, utils::ParserException);
 
   freeArgv(argv, args.size());
 }
@@ -99,7 +99,7 @@ TEST(ArgParserTest, NegativeNx) {
       "1.0",     "--tau", "0.1"};
   char **argv = makeArgv(args);
 
-  EXPECT_THROW({ ArgParser::parse(args.size(), argv); }, ParserException);
+  EXPECT_THROW({ utils::ArgParser::parse(args.size(), argv); }, utils::ParserException);
 
   freeArgv(argv, args.size());
 }
@@ -111,7 +111,7 @@ TEST(ArgParserTest, ZeroT) {
       "0.0",     "--tau", "0.1"};
   char **argv = makeArgv(args);
 
-  EXPECT_THROW({ ArgParser::parse(args.size(), argv); }, ParserException);
+  EXPECT_THROW({ utils::ArgParser::parse(args.size(), argv); }, utils::ParserException);
 
   freeArgv(argv, args.size());
 }
@@ -123,7 +123,7 @@ TEST(ArgParserTest, BothTauAndK) {
       "1.0",     "--tau", "0.1",  "--K", "10"};
   char **argv = makeArgv(args);
 
-  EXPECT_THROW({ ArgParser::parse(args.size(), argv); }, ParserException);
+  EXPECT_THROW({ utils::ArgParser::parse(args.size(), argv); }, utils::ParserException);
 
   freeArgv(argv, args.size());
 }
@@ -134,7 +134,7 @@ TEST(ArgParserTest, NeitherTauNorK) {
                                    "10",      "--Nz", "10",   "--T",  "1.0"};
   char **argv = makeArgv(args);
 
-  EXPECT_THROW({ ArgParser::parse(args.size(), argv); }, ParserException);
+  EXPECT_THROW({ utils::ArgParser::parse(args.size(), argv); }, utils::ParserException);
 
   freeArgv(argv, args.size());
 }
@@ -146,7 +146,7 @@ TEST(ArgParserTest, UnknownArgument) {
       "1.0",      "--tau", "0.1",  "--unknown", "value"};
   char **argv = makeArgv(args);
 
-  EXPECT_THROW({ ArgParser::parse(args.size(), argv); }, ParserException);
+  EXPECT_THROW({ utils::ArgParser::parse(args.size(), argv); }, utils::ParserException);
 
   freeArgv(argv, args.size());
 }
@@ -158,7 +158,7 @@ TEST(ArgParserTest, InvalidDoubleValue) {
       "1.0",     "--tau", "0.1"};
   char **argv = makeArgv(args);
 
-  EXPECT_THROW({ ArgParser::parse(args.size(), argv); }, ParserException);
+  EXPECT_THROW({ utils::ArgParser::parse(args.size(), argv); }, utils::ParserException);
 
   freeArgv(argv, args.size());
 }
@@ -170,7 +170,7 @@ TEST(ArgParserTest, InvalidIntValue) {
       "1.0",     "--tau", "0.1"};
   char **argv = makeArgv(args);
 
-  EXPECT_THROW({ ArgParser::parse(args.size(), argv); }, ParserException);
+  EXPECT_THROW({ utils::ArgParser::parse(args.size(), argv); }, utils::ParserException);
 
   freeArgv(argv, args.size());
 }
