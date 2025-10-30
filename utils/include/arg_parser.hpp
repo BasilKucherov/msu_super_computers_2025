@@ -1,6 +1,7 @@
 #ifndef ARG_PARSER_HPP
 #define ARG_PARSER_HPP
 
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -10,9 +11,13 @@ struct CmdArgs {
   double Ly;
   double Lz;
 
-  int Nx;
-  int Ny;
-  int Nz;
+  double hx;
+  double hy;
+  double hz;
+
+  std::optional<int> Nx;
+  std::optional<int> Ny;
+  std::optional<int> Nz;
 
   double T;
   double tau;
@@ -27,11 +32,12 @@ public:
 
 class ArgParser {
 public:
-  static CmdArgs parse(int argc, char *argv[]);
+  static CmdArgs parse(int argc, char *argv[], bool parse_mpi_grid = false);
 
 private:
-  static std::string getHelpMessage();
-  static void validateParams(const CmdArgs &params, bool hasTau, bool hasK);
+  static std::string getHelpMessage(bool mpi_mode);
+  static void validateParams(const CmdArgs &params, bool hasTau, bool hasK,
+                             bool parse_mpi_grid);
   static void computeMissingTimeParam(CmdArgs &params, bool hasTau, bool hasK);
 };
 } // namespace utils
