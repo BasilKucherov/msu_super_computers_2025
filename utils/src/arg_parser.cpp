@@ -19,10 +19,9 @@ CmdArgs ArgParser::parse(int argc, char *argv[], bool parse_mpi_grid) {
   CmdArgs params = {};
 
   bool hasLx = false, hasLy = false, hasLz = false;
-  bool hasHx = false, hasHy = false, hasHz = false;
   bool hasNx = false, hasNy = false, hasNz = false;
   bool hasT = false;
-  bool hasTau = false, hasK = false;
+  bool hasTau = false, hasK = false, hasN = false;
 
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
@@ -45,18 +44,6 @@ CmdArgs ArgParser::parse(int argc, char *argv[], bool parse_mpi_grid) {
       } else if (arg == "--Lz") {
         params.Lz = std::stod(value);
         hasLz = true;
-        ++i;
-      } else if (arg == "--hx") {
-        params.hx = std::stod(value);
-        hasHx = true;
-        ++i;
-      } else if (arg == "--hy") {
-        params.hy = std::stod(value);
-        hasHy = true;
-        ++i;
-      } else if (arg == "--hz") {
-        params.hz = std::stod(value);
-        hasHz = true;
         ++i;
       } else if (arg == "--Nx") {
         if (!parse_mpi_grid) {
@@ -91,6 +78,10 @@ CmdArgs ArgParser::parse(int argc, char *argv[], bool parse_mpi_grid) {
         params.K = std::stoi(value);
         hasK = true;
         ++i;
+      } else if (arg == "--N") {
+        params.N = std::stoi(value);
+        hasN = true;
+        ++i;
       } else {
         throw ParserException("Unknown argument: " + arg);
       }
@@ -108,12 +99,8 @@ CmdArgs ArgParser::parse(int argc, char *argv[], bool parse_mpi_grid) {
     missing << " --Ly";
   if (!hasLz)
     missing << " --Lz";
-  if (!hasHx)
-    missing << " --hx";
-  if (!hasHy)
-    missing << " --hy";
-  if (!hasHz)
-    missing << " --hz";
+  if (!hasN)
+    missing << " --N";
   if (!hasT)
     missing << " --T";
 
@@ -143,9 +130,8 @@ std::string ArgParser::getHelpMessage(bool mpi_mode) {
        << "  --Lx <value>    Domain length in X direction (double, > 0)\n"
        << "  --Ly <value>    Domain length in Y direction (double, > 0)\n"
        << "  --Lz <value>    Domain length in Z direction (double, > 0)\n"
-       << "  --hx <value>    Spatial step size in X direction (double, > 0)\n"
-       << "  --hy <value>    Spatial step size in Y direction (double, > 0)\n"
-       << "  --hz <value>    Spatial step size in Z direction (double, > 0)\n"
+       << "  --N <value>     Number of grid points in each direction (int, > "
+          "0)\n"
        << "  --T <value>     Total simulation time (double, > 0)\n\n";
 
   if (mpi_mode) {
@@ -197,18 +183,9 @@ void ArgParser::validateParams(const CmdArgs &params, bool hasTau, bool hasK,
     throw ParserException("Lz must be positive (got " +
                           std::to_string(params.Lz) + ")");
   }
-
-  if (params.hx <= 0.0) {
-    throw ParserException("hx must be positive (got " +
-                          std::to_string(params.hx) + ")");
-  }
-  if (params.hy <= 0.0) {
-    throw ParserException("hy must be positive (got " +
-                          std::to_string(params.hy) + ")");
-  }
-  if (params.hz <= 0.0) {
-    throw ParserException("hz must be positive (got " +
-                          std::to_string(params.hz) + ")");
+  if (params.N <= 0) {
+    throw ParserException("N must be positive (got " +
+                          std::to_string(params.N) + ")");
   }
 
   if (parse_mpi_grid) {

@@ -11,10 +11,6 @@ struct CmdArgs {
   double Ly;
   double Lz;
 
-  double hx;
-  double hy;
-  double hz;
-
   std::optional<int> Nx;
   std::optional<int> Ny;
   std::optional<int> Nz;
@@ -22,6 +18,7 @@ struct CmdArgs {
   double T;
   double tau;
   int K;
+  int N;
 };
 
 class ParserException : public std::runtime_error {

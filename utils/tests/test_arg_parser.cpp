@@ -20,9 +20,9 @@ void freeArgv(char **argv, int argc) {
 }
 
 TEST(ArgParserTest, ValidInputWithTau) {
-  std::vector<std::string> args = {
-      "program", "--Lx", "1.0",  "--Ly", "2.0", "--Lz", "3.0",   "--hx", "0.1",
-      "--hy",    "0.2",  "--hz", "0.3",  "--T", "10.0", "--tau", "0.1"};
+  std::vector<std::string> args = {"program", "--Lx",  "1.0", "--Ly", "2.0",
+                                   "--Lz",    "3.0",   "--N", "10",   "--T",
+                                   "10.0",    "--tau", "0.1"};
   char **argv = makeArgv(args);
 
   utils::CmdArgs params = utils::ArgParser::parse(args.size(), argv);
@@ -30,9 +30,7 @@ TEST(ArgParserTest, ValidInputWithTau) {
   EXPECT_DOUBLE_EQ(params.Lx, 1.0);
   EXPECT_DOUBLE_EQ(params.Ly, 2.0);
   EXPECT_DOUBLE_EQ(params.Lz, 3.0);
-  EXPECT_DOUBLE_EQ(params.hx, 0.1);
-  EXPECT_DOUBLE_EQ(params.hy, 0.2);
-  EXPECT_DOUBLE_EQ(params.hz, 0.3);
+  EXPECT_EQ(params.N, 10);
   EXPECT_FALSE(params.Nx.has_value());
   EXPECT_FALSE(params.Ny.has_value());
   EXPECT_FALSE(params.Nz.has_value());
@@ -44,9 +42,9 @@ TEST(ArgParserTest, ValidInputWithTau) {
 }
 
 TEST(ArgParserTest, ValidInputWithK) {
-  std::vector<std::string> args = {
-      "program", "--Lx", "1.0",  "--Ly", "1.0", "--Lz", "1.0", "--hx", "0.01",
-      "--hy",    "0.01", "--hz", "0.01", "--T", "5.0",  "--K", "50"};
+  std::vector<std::string> args = {"program", "--Lx", "1.0", "--Ly", "1.0",
+                                   "--Lz",    "1.0",  "--N", "10",   "--T",
+                                   "5.0",     "--K",  "50"};
   char **argv = makeArgv(args);
 
   utils::CmdArgs params = utils::ArgParser::parse(args.size(), argv);
@@ -58,9 +56,9 @@ TEST(ArgParserTest, ValidInputWithK) {
 }
 
 TEST(ArgParserTest, ComputeKWithNonDivisibleTau) {
-  std::vector<std::string> args = {
-      "program", "--Lx", "1.0",  "--Ly", "1.0", "--Lz", "1.0",   "--hx", "0.01",
-      "--hy",    "0.01", "--hz", "0.01", "--T", "10.0", "--tau", "0.3"};
+  std::vector<std::string> args = {"program", "--Lx",  "1.0", "--Ly", "1.0",
+                                   "--Lz",    "1.0",   "--N", "10",   "--T",
+                                   "10.0",    "--tau", "0.3"};
   char **argv = makeArgv(args);
 
   utils::CmdArgs params = utils::ArgParser::parse(args.size(), argv);
@@ -82,9 +80,9 @@ TEST(ArgParserTest, MissingRequiredParam) {
 }
 
 TEST(ArgParserTest, NegativeLx) {
-  std::vector<std::string> args = {
-      "program", "--Lx", "-1.0", "--Ly", "1.0", "--Lz", "1.0",   "--hx", "0.01",
-      "--hy",    "0.01", "--hz", "0.01", "--T", "1.0",  "--tau", "0.1"};
+  std::vector<std::string> args = {"program", "--Lx",  "-1.0", "--Ly", "1.0",
+                                   "--Lz",    "1.0",   "--N",  "10",   "--T",
+                                   "1.0",     "--tau", "0.1"};
   char **argv = makeArgv(args);
 
   EXPECT_THROW(
@@ -93,11 +91,10 @@ TEST(ArgParserTest, NegativeLx) {
   freeArgv(argv, args.size());
 }
 
-TEST(ArgParserTest, NegativeHx) {
-  std::vector<std::string> args = {"program", "--Lx", "1.0",  "--Ly",  "1.0",
-                                   "--Lz",    "1.0",  "--hx", "-0.01", "--hy",
-                                   "0.01",    "--hz", "0.01", "--T",   "1.0",
-                                   "--tau",   "0.1"};
+TEST(ArgParserTest, NegativeN) {
+  std::vector<std::string> args = {"program", "--Lx",  "1.0", "--Ly", "1.0",
+                                   "--Lz",    "1.0",   "--N", "-10",  "--T",
+                                   "1.0",     "--tau", "0.1"};
   char **argv = makeArgv(args);
 
   EXPECT_THROW(
@@ -107,9 +104,9 @@ TEST(ArgParserTest, NegativeHx) {
 }
 
 TEST(ArgParserTest, ZeroT) {
-  std::vector<std::string> args = {
-      "program", "--Lx", "1.0",  "--Ly", "1.0", "--Lz", "1.0",   "--hx", "0.01",
-      "--hy",    "0.01", "--hz", "0.01", "--T", "0.0",  "--tau", "0.1"};
+  std::vector<std::string> args = {"program", "--Lx",  "1.0", "--Ly", "1.0",
+                                   "--Lz",    "1.0",   "--N", "10",   "--T",
+                                   "0.0",     "--tau", "0.1"};
   char **argv = makeArgv(args);
 
   EXPECT_THROW(
@@ -119,10 +116,9 @@ TEST(ArgParserTest, ZeroT) {
 }
 
 TEST(ArgParserTest, BothTauAndK) {
-  std::vector<std::string> args = {"program", "--Lx", "1.0",  "--Ly", "1.0",
-                                   "--Lz",    "1.0",  "--hx", "0.01", "--hy",
-                                   "0.01",    "--hz", "0.01", "--T",  "1.0",
-                                   "--tau",   "0.1",  "--K",  "10"};
+  std::vector<std::string> args = {"program", "--Lx",  "1.0", "--Ly", "1.0",
+                                   "--Lz",    "1.0",   "--N", "10",   "--T",
+                                   "1.0",     "--tau", "0.1", "--K",  "10"};
   char **argv = makeArgv(args);
 
   EXPECT_THROW(
@@ -132,9 +128,9 @@ TEST(ArgParserTest, BothTauAndK) {
 }
 
 TEST(ArgParserTest, NeitherTauNorK) {
-  std::vector<std::string> args = {"program", "--Lx", "1.0",  "--Ly", "1.0",
-                                   "--Lz",    "1.0",  "--hx", "0.01", "--hy",
-                                   "0.01",    "--hz", "0.01", "--T",  "1.0"};
+  std::vector<std::string> args = {"program", "--Lx", "1.0", "--Ly",
+                                   "1.0",     "--Lz", "1.0", "--N",
+                                   "10",      "--T",  "1.0"};
   char **argv = makeArgv(args);
 
   EXPECT_THROW(
@@ -145,9 +141,8 @@ TEST(ArgParserTest, NeitherTauNorK) {
 
 TEST(ArgParserTest, UnknownArgument) {
   std::vector<std::string> args = {
-      "program", "--Lx",  "1.0",  "--Ly",      "1.0",  "--Lz", "1.0",
-      "--hx",    "0.01",  "--hy", "0.01",      "--hz", "0.01", "--T",
-      "1.0",     "--tau", "0.1",  "--unknown", "value"};
+      "program", "--Lx", "1.0", "--Ly",  "1.0", "--Lz",      "1.0",  "--N",
+      "10",      "--T",  "1.0", "--tau", "0.1", "--unknown", "value"};
   char **argv = makeArgv(args);
 
   EXPECT_THROW(
@@ -157,21 +152,9 @@ TEST(ArgParserTest, UnknownArgument) {
 }
 
 TEST(ArgParserTest, InvalidDoubleValue) {
-  std::vector<std::string> args = {
-      "program", "--Lx", "abc",  "--Ly", "1.0", "--Lz", "1.0",   "--hx", "0.01",
-      "--hy",    "0.01", "--hz", "0.01", "--T", "1.0",  "--tau", "0.1"};
-  char **argv = makeArgv(args);
-
-  EXPECT_THROW(
-      { utils::ArgParser::parse(args.size(), argv); }, utils::ParserException);
-
-  freeArgv(argv, args.size());
-}
-
-TEST(ArgParserTest, InvalidDoubleValueForHx) {
-  std::vector<std::string> args = {
-      "program", "--Lx", "1.0",  "--Ly", "1.0", "--Lz", "1.0",   "--hx", "xyz",
-      "--hy",    "0.01", "--hz", "0.01", "--T", "1.0",  "--tau", "0.1"};
+  std::vector<std::string> args = {"program", "--Lx",  "abc", "--Ly", "1.0",
+                                   "--Lz",    "1.0",   "--N", "10",   "--T",
+                                   "1.0",     "--tau", "0.1"};
   char **argv = makeArgv(args);
 
   EXPECT_THROW(
@@ -181,16 +164,16 @@ TEST(ArgParserTest, InvalidDoubleValueForHx) {
 }
 
 TEST(ArgParserTest, MPIModeValidInput) {
-  std::vector<std::string> args = {
-      "program", "--Lx", "1.0",  "--Ly", "1.0",  "--Lz",  "1.0", "--hx",
-      "0.01",    "--hy", "0.01", "--hz", "0.01", "--Nx",  "2",   "--Ny",
-      "2",       "--Nz", "2",    "--T",  "10.0", "--tau", "0.1"};
+  std::vector<std::string> args = {"program", "--Lx", "1.0",   "--Ly", "1.0",
+                                   "--Lz",    "1.0",  "--N",   "10",   "--Nx",
+                                   "2",       "--Ny", "2",     "--Nz", "2",
+                                   "--T",     "10.0", "--tau", "0.1"};
   char **argv = makeArgv(args);
 
   utils::CmdArgs params = utils::ArgParser::parse(args.size(), argv, true);
 
   EXPECT_DOUBLE_EQ(params.Lx, 1.0);
-  EXPECT_DOUBLE_EQ(params.hx, 0.01);
+  EXPECT_EQ(params.N, 10);
   EXPECT_TRUE(params.Nx.has_value());
   EXPECT_EQ(params.Nx.value(), 2);
   EXPECT_EQ(params.Ny.value(), 2);
@@ -200,10 +183,9 @@ TEST(ArgParserTest, MPIModeValidInput) {
 }
 
 TEST(ArgParserTest, MPIModeNxNotAllowedInNonMPIMode) {
-  std::vector<std::string> args = {"program", "--Lx", "1.0",   "--Ly", "1.0",
-                                   "--Lz",    "1.0",  "--hx",  "0.01", "--hy",
-                                   "0.01",    "--hz", "0.01",  "--Nx", "2",
-                                   "--T",     "10.0", "--tau", "0.1"};
+  std::vector<std::string> args = {"program", "--Lx", "1.0",  "--Ly",  "1.0",
+                                   "--Lz",    "1.0",  "--N",  "10",    "--Nx",
+                                   "2",       "--T",  "10.0", "--tau", "0.1"};
   char **argv = makeArgv(args);
 
   EXPECT_THROW(
