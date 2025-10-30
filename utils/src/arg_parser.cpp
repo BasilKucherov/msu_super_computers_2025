@@ -7,7 +7,7 @@
 #include <string>
 
 namespace utils {
-WaveParams ArgParser::parse(int argc, char *argv[]) {
+CmdArgs ArgParser::parse(int argc, char *argv[]) {
   for (int i = 1; i < argc; ++i) {
     if (std::strcmp(argv[i], "--help") == 0 ||
         std::strcmp(argv[i], "-h") == 0) {
@@ -16,7 +16,7 @@ WaveParams ArgParser::parse(int argc, char *argv[]) {
     }
   }
 
-  WaveParams params = {};
+  CmdArgs params = {};
 
   bool hasLx = false, hasLy = false, hasLz = false;
   bool hasNx = false, hasNy = false, hasNz = false;
@@ -135,8 +135,7 @@ std::string ArgParser::getHelpMessage() {
   return help.str();
 }
 
-void ArgParser::validateParams(const WaveParams &params, bool hasTau,
-                               bool hasK) {
+void ArgParser::validateParams(const CmdArgs &params, bool hasTau, bool hasK) {
   if (params.Lx <= 0.0) {
     throw ParserException("Lx must be positive (got " +
                           std::to_string(params.Lx) + ")");
@@ -186,7 +185,7 @@ void ArgParser::validateParams(const WaveParams &params, bool hasTau,
   }
 }
 
-void ArgParser::computeMissingTimeParam(WaveParams &params, bool hasTau,
+void ArgParser::computeMissingTimeParam(CmdArgs &params, bool hasTau,
                                         bool hasK) {
   if (hasTau) {
     params.K = static_cast<int32_t>(std::ceil(params.T / params.tau));

@@ -5,7 +5,7 @@
 #include <string>
 
 namespace utils {
-struct WaveParams {
+struct CmdArgs {
   double Lx;
   double Ly;
   double Lz;
@@ -27,13 +27,12 @@ public:
 
 class ArgParser {
 public:
-  static WaveParams parse(int argc, char *argv[]);
+  static CmdArgs parse(int argc, char *argv[]);
 
 private:
   static std::string getHelpMessage();
-  static void validateParams(const WaveParams &params, bool hasTau, bool hasK);
-  static void computeMissingTimeParam(WaveParams &params, bool hasTau,
-                                      bool hasK);
+  static void validateParams(const CmdArgs &params, bool hasTau, bool hasK);
+  static void computeMissingTimeParam(CmdArgs &params, bool hasTau, bool hasK);
 };
 } // namespace utils
 
