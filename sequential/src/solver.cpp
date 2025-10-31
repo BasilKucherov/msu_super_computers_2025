@@ -52,26 +52,37 @@ void SequentialSolver::computeU1() {
 }
 
 void SequentialSolver::computeTimeStep() {
-  for (int i = 0; i < Nx_; ++i) {
-    for (int j = 1; j < Ny_ - 1; ++j) {
-      for (int k = 0; k < Nz_; ++k) {
-        const size_t idx = utils::idx3d(i, j, k, Ny_, Nz_);
-        const double laplacian = computeLaplacian(u_curr_, i, j, k);
-        u_next_[idx] = 2.0 * u_curr_[idx] - u_prev_[idx] + coeff_ * laplacian;
+
+#pragma omp parallel
+  {
+#pragma omp for schedule(static)
+    {
+      for (int i = 0; i < Nx_; ++i) {
+        for (int j = 1; j < Ny_ - 1; ++j) {
+          for (int k = 0; k < Nz_; ++k) {
+            const size_t idx = utils::idx3d(i, j, k, Ny_, Nz_);
+            const double laplacian = computeLaplacian(u_curr_, i, j, k);
+            u_next_[idx] =
+                2.0 * u_curr_[idx] - u_prev_[idx] + coeff_ * laplacian;
+          }
+        }
       }
     }
-  }
 
-  applyBoundaryConditions(u_next_);
+    applyBoundaryConditions(u_next_);
+  }
   u_prev_.swap(u_curr_);
   u_curr_.swap(u_next_);
 }
 
 void SequentialSolver::applyBoundaryConditions(std::vector<double> &u) {
-  for (int i = 0; i < Nx_; ++i) {
-    for (int k = 0; k < Nz_; ++k) {
-      u[utils::idx3d(i, 0, k, Ny_, Nz_)] = 0.0;
-      u[utils::idx3d(i, Ny_ - 1, k, Ny_, Nz_)] = 0.0;
+#pragma omp for schedule(static)
+  {
+    for (int i = 0; i < Nx_; ++i) {
+      for (int k = 0; k < Nz_; ++k) {
+        u[utils::idx3d(i, 0, k, Ny_, Nz_)] = 0.0;
+        u[utils::idx3d(i, Ny_ - 1, k, Ny_, Nz_)] = 0.0;
+      }
     }
   }
 }
