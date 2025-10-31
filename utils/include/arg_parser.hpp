@@ -1,7 +1,6 @@
 #ifndef ARG_PARSER_HPP
 #define ARG_PARSER_HPP
 
-#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -11,9 +10,9 @@ struct CmdArgs {
   double Ly;
   double Lz;
 
-  std::optional<int> Nx;
-  std::optional<int> Ny;
-  std::optional<int> Nz;
+  int Nx;
+  int Ny;
+  int Nz;
 
   double T;
   double tau;

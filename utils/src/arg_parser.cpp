@@ -18,6 +18,9 @@ CmdArgs ArgParser::parse(int argc, char *argv[], bool parse_mpi_grid) {
 
   CmdArgs params = {};
   params.debug = false;
+  params.Nx = 0;
+  params.Ny = 0;
+  params.Nz = 0;
 
   bool hasLx = false, hasLy = false, hasLz = false;
   bool hasNx = false, hasNy = false, hasNz = false;
@@ -197,17 +200,17 @@ void ArgParser::validateParams(const CmdArgs &params, bool hasTau, bool hasK,
   }
 
   if (parse_mpi_grid) {
-    if (params.Nx.value() <= 0) {
+    if (params.Nx <= 0) {
       throw ParserException("Nx must be positive (got " +
-                            std::to_string(params.Nx.value()) + ")");
+                            std::to_string(params.Nx) + ")");
     }
-    if (params.Ny.value() <= 0) {
+    if (params.Ny <= 0) {
       throw ParserException("Ny must be positive (got " +
-                            std::to_string(params.Ny.value()) + ")");
+                            std::to_string(params.Ny) + ")");
     }
-    if (params.Nz.value() <= 0) {
+    if (params.Nz <= 0) {
       throw ParserException("Nz must be positive (got " +
-                            std::to_string(params.Nz.value()) + ")");
+                            std::to_string(params.Nz) + ")");
     }
   }
 

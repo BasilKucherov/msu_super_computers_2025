@@ -14,11 +14,11 @@ SEQUENTIAL_OBJ_OMP := $(filter-out sequential/src/main.omp.o,$(SEQUENTIAL_SRC:.c
 
 BUILD_DIR := build
 
-CXXFLAGS_COMMON := -std=c++17 -Wall -Wextra $(INCLUDES)
+CXXFLAGS_COMMON := -std=c++11 -Wall -Wextra $(INCLUDES)
 
-CXXFLAGS_RELEASE := -O3 -march=native
+CXXFLAGS_RELEASE := -O3
 
-CXXFLAGS_PROFILE := -O3 -g -gline-tables-only -fno-omit-frame-pointer -march=native
+CXXFLAGS_PROFILE := -O3 -g -gline-tables-only -fno-omit-frame-pointer
 
 CXXFLAGS_PROFILE_DEEP := $(CXXFLAGS_PROFILE) -fno-inline-functions
 
@@ -39,7 +39,7 @@ endif
 
 POSTLINK := @dsymutil $@ -o $@.dSYM >/dev/null 2>&1 || true
 
-.PHONY: all clean test run-test sequential openmp profile profile-deep debug \
+.PHONY: all clean sequential openmp profile profile-deep debug \
         openmp-profile openmp-profile-deep trace trace-omp run run-omp
 
 all: sequential openmp
@@ -49,18 +49,6 @@ all: sequential openmp
 
 %.omp.o: %.cpp
 	$(CXX) $(CXXFLAGS) -fopenmp -c $< -o $@
-
-GTEST_DIR     := /usr/local
-GTEST_INCLUDE := -I$(GTEST_DIR)/include
-GTEST_LIBS    := -L$(GTEST_DIR)/lib -lgtest -lgtest_main -pthread
-
-test: test_runner
-test_runner: $(UTILS_OBJ) utils/tests/test_arg_parser.cpp
-	$(CXX) $(CXXFLAGS) $(GTEST_INCLUDE) \
-		utils/tests/test_arg_parser.cpp $(UTILS_OBJ) \
-		$(GTEST_LIBS) -o $@
-run-test: test_runner
-	./test_runner
 
 sequential: $(BUILD_DIR)/sequential
 
@@ -110,5 +98,5 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 clean:
-	rm -f $(UTILS_OBJ) $(SEQUENTIAL_OBJ) $(UTILS_OBJ_OMP) $(SEQUENTIAL_OBJ_OMP) test_runner
+	rm -f $(UTILS_OBJ) $(SEQUENTIAL_OBJ) $(UTILS_OBJ_OMP) $(SEQUENTIAL_OBJ_OMP)
 	rm -rf $(BUILD_DIR)
