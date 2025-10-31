@@ -2,6 +2,7 @@
 #include "error_metrics.hpp"
 #include "grid_utils.hpp"
 #include <chrono>
+#include <iomanip>
 #include <iostream>
 
 namespace sequential {
@@ -103,6 +104,7 @@ void SequentialSolver::applyBoundaryConditions(std::vector<double> &u) {
 
 void SequentialSolver::solve() {
   std::cout << "Starting Sequential Wave Equation Solver" << std::endl;
+  std::cout << "Mode: " << (params_.debug ? "DEBUG" : "TEST") << std::endl;
   std::cout << "Grid size: " << Nx_ << "*" << Ny_ << "*" << Nz_ << " = "
             << total_points_ << " points" << std::endl;
   std::cout << "Time steps: " << params_.K << ", τ = " << params_.tau
@@ -111,54 +113,82 @@ void SequentialSolver::solve() {
             << "] * [0, " << params_.Lz << "]" << std::endl;
   std::cout << std::endl;
 
-  initializeU0();
+  std::cout << std::fixed << std::setprecision(24);
 
-  utils::computeAnalyticalSolution(u_analytical_, params_.u_analytical,
-                                   params_.Lx, params_.Ly, params_.Lz, Nx_, Ny_,
-                                   Nz_, 0.0);
-  auto metrics = utils::computeErrorMetrics(u_prev_, u_analytical_);
-  std::cout << "Step 0, t=0.000000: max_error=" << metrics.max_abs_error
-            << ", rmse=" << metrics.rmse << std::endl;
+  if (params_.debug) {
+    initializeU0();
+    utils::computeAnalyticalSolution(u_analytical_, params_.u_analytical,
+                                     params_.Lx, params_.Ly, params_.Lz, Nx_,
+                                     Ny_, Nz_, 0.0);
+    auto metrics = utils::computeErrorMetrics(u_prev_, u_analytical_);
+    std::cout << "Step 0, t=0.000000: max_error=" << metrics.max_abs_error
+              << ", rmse=" << metrics.rmse << std::endl;
 
-  auto start = std::chrono::high_resolution_clock::now();
-  computeU1();
-  auto end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> elapsed = end - start;
-
-  utils::computeAnalyticalSolution(u_analytical_, params_.u_analytical,
-                                   params_.Lx, params_.Ly, params_.Lz, Nx_, Ny_,
-                                   Nz_, params_.tau);
-  metrics = utils::computeErrorMetrics(u_curr_, u_analytical_);
-  std::cout << "Step 1, t=" << params_.tau
-            << ": max_error=" << metrics.max_abs_error
-            << ", rmse=" << metrics.rmse << ", time=" << elapsed.count() << "s"
-            << std::endl;
-
-  double total_time = elapsed.count();
-
-  for (int n = 2; n <= params_.K; ++n) {
-    double t_current = n * params_.tau;
-
-    start = std::chrono::high_resolution_clock::now();
-    computeTimeStep();
-    end = std::chrono::high_resolution_clock::now();
-    elapsed = end - start;
-    total_time += elapsed.count();
+    auto start = std::chrono::high_resolution_clock::now();
+    computeU1();
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
 
     utils::computeAnalyticalSolution(u_analytical_, params_.u_analytical,
                                      params_.Lx, params_.Ly, params_.Lz, Nx_,
-                                     Ny_, Nz_, t_current);
+                                     Ny_, Nz_, params_.tau);
     metrics = utils::computeErrorMetrics(u_curr_, u_analytical_);
-    std::cout << "Step " << n << ", t=" << t_current
+    std::cout << "Step 1, t=" << params_.tau
               << ": max_error=" << metrics.max_abs_error
               << ", rmse=" << metrics.rmse << ", time=" << elapsed.count()
               << "s" << std::endl;
-  }
 
-  std::cout << std::endl;
-  std::cout << "Total computation time: " << total_time << "s" << std::endl;
-  std::cout << "Final errors - max_error: " << metrics.max_abs_error
-            << ", rmse: " << metrics.rmse << std::endl;
+    double total_time = elapsed.count();
+
+    for (int n = 2; n <= params_.K; ++n) {
+      double t_current = n * params_.tau;
+
+      start = std::chrono::high_resolution_clock::now();
+      computeTimeStep();
+      end = std::chrono::high_resolution_clock::now();
+      elapsed = end - start;
+      total_time += elapsed.count();
+
+      utils::computeAnalyticalSolution(u_analytical_, params_.u_analytical,
+                                       params_.Lx, params_.Ly, params_.Lz, Nx_,
+                                       Ny_, Nz_, t_current);
+      metrics = utils::computeErrorMetrics(u_curr_, u_analytical_);
+      std::cout << "Step " << n << ", t=" << t_current
+                << ": max_error=" << metrics.max_abs_error
+                << ", rmse=" << metrics.rmse << ", time=" << elapsed.count()
+                << "s" << std::endl;
+    }
+
+    std::cout << std::endl;
+    std::cout << "Total computation time: " << total_time << "s" << std::endl;
+    std::cout << "Final errors - max_error: " << metrics.max_abs_error
+              << ", rmse: " << metrics.rmse << std::endl;
+  } else {
+    auto start = std::chrono::high_resolution_clock::now();
+    initializeU0();
+    computeU1();
+    for (int n = 2; n <= params_.K; ++n) {
+      computeTimeStep();
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> total_time = end - start;
+
+    double t_final = params_.K * params_.tau;
+    utils::computeAnalyticalSolution(u_analytical_, params_.u_analytical,
+                                     params_.Lx, params_.Ly, params_.Lz, Nx_,
+                                     Ny_, Nz_, t_final);
+    auto metrics = utils::computeErrorMetrics(u_curr_, u_analytical_);
+
+    std::cout << std::endl;
+    std::cout << "Total computation time: " << total_time.count() << "s"
+              << std::endl;
+    std::cout << "Time per step: " << total_time.count() / params_.K << "s"
+              << std::endl;
+    std::cout << "Final errors at t=" << t_final
+              << " - max_error: " << metrics.max_abs_error
+              << ", rmse: " << metrics.rmse << std::endl;
+  }
 }
 
 } // namespace sequential

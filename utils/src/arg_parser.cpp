@@ -17,6 +17,7 @@ CmdArgs ArgParser::parse(int argc, char *argv[], bool parse_mpi_grid) {
   }
 
   CmdArgs params = {};
+  params.debug = false;
 
   bool hasLx = false, hasLy = false, hasLz = false;
   bool hasNx = false, hasNy = false, hasNz = false;
@@ -25,6 +26,11 @@ CmdArgs ArgParser::parse(int argc, char *argv[], bool parse_mpi_grid) {
 
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
+
+    if (arg == "--debug" || arg == "-d") {
+      params.debug = true;
+      continue;
+    }
 
     if (i + 1 >= argc) {
       throw ParserException("Missing value for argument: " + arg);
@@ -153,6 +159,8 @@ std::string ArgParser::getHelpMessage(bool mpi_mode) {
        << "                  If provided, tau will be computed as tau = T / "
           "K\n\n"
        << "OTHER:\n"
+       << "  --debug, -d     Enable debug mode (shows errors at each step)\n"
+       << "                  Default: test mode (only shows final errors)\n"
        << "  --help, -h      Display this help message\n\n"
        << "EXAMPLE USAGE:\n";
 

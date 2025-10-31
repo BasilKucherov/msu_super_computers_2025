@@ -15,13 +15,14 @@ struct SolverParams {
 
   double a_squared;
   double a_t;
+  bool debug;
 
   std::function<double(double, double, double, double)> u_analytical;
 
   SolverParams(const utils::CmdArgs &args, const utils::VariantConfig &config)
       : Lx(args.Lx), Ly(args.Ly), Lz(args.Lz), N(args.N), T(args.T),
         tau(args.tau), K(args.K), a_squared(config.a_squared), a_t(config.a_t),
-        u_analytical(config.u_analytical) {}
+        debug(args.debug), u_analytical(config.u_analytical) {}
 };
 } // namespace sequential
 

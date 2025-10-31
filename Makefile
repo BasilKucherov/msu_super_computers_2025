@@ -1,5 +1,5 @@
 CXX = clang++
-CXXFLAGS = -std=c++17 -Wall -Wextra -O2
+CXXFLAGS = -std=c++17 -Wall -Wextra -O3
 INCLUDES = -Iutils/include -Isequential/include -Iparallel_openmp/include
 
 BUILD_DIR = build

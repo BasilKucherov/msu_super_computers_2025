@@ -19,7 +19,7 @@ void computeAnalyticalSolution(
       double y = j * hy;
       for (int k = 0; k < Nz; ++k) {
         double z = k * hz;
-        size_t idx = idx3d(i, j, k, Nx, Ny, Nz);
+        size_t idx = idx3d(i, j, k, Ny, Nz);
         u_analytical_out[idx] = u_analytical_func(x, y, z, t);
       }
     }

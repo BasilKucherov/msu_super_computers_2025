@@ -19,6 +19,7 @@ struct CmdArgs {
   double tau;
   int K;
   int N;
+  bool debug;
 };
 
 class ParserException : public std::runtime_error {
