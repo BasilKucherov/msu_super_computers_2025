@@ -8,14 +8,14 @@ namespace utils {
 
 struct ErrorMetrics {
   double max_abs_error;
-  double mse;
+  double rmse;
 };
 
 void computeAnalyticalSolution(
     std::vector<double> &u_analytical_out,
     const std::function<double(double, double, double, double)>
         &u_analytical_func,
-    double Lx, double Ly, double Lz, int N, double t);
+    double Lx, double Ly, double Lz, int Nx, int Ny, int Nz, double t);
 
 ErrorMetrics computeErrorMetrics(const std::vector<double> &u_numerical,
                                  const std::vector<double> &u_analytical);

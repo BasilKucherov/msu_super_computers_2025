@@ -16,6 +16,10 @@ private:
   const SolverParams &params_;
 
   int N_;
+  int Nx_, Ny_, Nz_;
+  double hx_, hy_, hz_;
+  double invhx2_, invhy2_, invhz2_;
+  double coeff_;
   size_t total_points_;
 
   std::vector<double> u_prev_;

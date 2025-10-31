@@ -1,4 +1,5 @@
 #include "error_metrics.hpp"
+#include "grid_utils.hpp"
 #include <cmath>
 
 namespace utils {
@@ -6,19 +7,19 @@ void computeAnalyticalSolution(
     std::vector<double> &u_analytical_out,
     const std::function<double(double, double, double, double)>
         &u_analytical_func,
-    double Lx, double Ly, double Lz, int N, double t) {
+    double Lx, double Ly, double Lz, int Nx, int Ny, int Nz, double t) {
 
-  double hx = Lx / N;
-  double hy = Ly / N;
-  double hz = Lz / N;
+  const double hx = Lx / Nx;
+  const double hy = Ly / (Ny - 1);
+  const double hz = Lz / Nz;
 
-  for (int i = 0; i < N; ++i) {
+  for (int i = 0; i < Nx; ++i) {
     double x = i * hx;
-    for (int j = 0; j < N; ++j) {
+    for (int j = 0; j < Ny; ++j) {
       double y = j * hy;
-      for (int k = 0; k < N; ++k) {
+      for (int k = 0; k < Nz; ++k) {
         double z = k * hz;
-        size_t idx = k + N * (j + N * i);
+        size_t idx = idx3d(i, j, k, Nx, Ny, Nz);
         u_analytical_out[idx] = u_analytical_func(x, y, z, t);
       }
     }
@@ -39,7 +40,7 @@ ErrorMetrics computeErrorMetrics(const std::vector<double> &u_numerical,
     sum_squared_error += error * error;
   }
 
-  metrics.mse = std::sqrt(sum_squared_error / static_cast<double>(N));
+  metrics.rmse = std::sqrt(sum_squared_error / static_cast<double>(N));
 
   return metrics;
 }

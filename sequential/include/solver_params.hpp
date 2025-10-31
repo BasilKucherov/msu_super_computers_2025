@@ -7,11 +7,11 @@
 namespace sequential {
 struct SolverParams {
   double Lx, Ly, Lz;
+  int N;
 
   double T;
   double tau;
   int K;
-  int N;
 
   double a_squared;
   double a_t;
