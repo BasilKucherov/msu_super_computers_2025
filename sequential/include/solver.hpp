@@ -31,6 +31,8 @@ private:
   void computeU1();
   void computeTimeStep();
   void applyBoundaryConditions(std::vector<double> &u);
+  double computeLaplacian(const std::vector<double> &u, int i, int j,
+                          int k) const;
 };
 
 } // namespace sequential

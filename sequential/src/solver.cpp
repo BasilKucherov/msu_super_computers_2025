@@ -41,21 +41,8 @@ void SequentialSolver::computeU1() {
   for (int i = 0; i < Nx_; ++i) {
     for (int j = 1; j < Ny_ - 1; ++j) {
       for (int k = 0; k < Nz_; ++k) {
-        size_t idx = utils::idx3d(i, j, k, Ny_, Nz_);
-
-        const double laplacian =
-            (u_prev_[utils::idx3d(utils::ip(i, Nx_), j, k, Ny_, Nz_)] -
-             2.0 * u_prev_[idx] +
-             u_prev_[utils::idx3d(utils::im(i, Nx_), j, k, Ny_, Nz_)]) *
-                invhx2_ +
-            (u_prev_[utils::idx3d(i, j + 1, k, Ny_, Nz_)] - 2.0 * u_prev_[idx] +
-             u_prev_[utils::idx3d(i, j - 1, k, Ny_, Nz_)]) *
-                invhy2_ +
-            (u_prev_[utils::idx3d(i, j, utils::ip(k, Nz_), Ny_, Nz_)] -
-             2.0 * u_prev_[idx] +
-             u_prev_[utils::idx3d(i, j, utils::im(k, Nz_), Ny_, Nz_)]) *
-                invhz2_;
-
+        const size_t idx = utils::idx3d(i, j, k, Ny_, Nz_);
+        const double laplacian = computeLaplacian(u_prev_, i, j, k);
         u_curr_[idx] = u_prev_[idx] + coeff * laplacian;
       }
     }
@@ -68,21 +55,8 @@ void SequentialSolver::computeTimeStep() {
   for (int i = 0; i < Nx_; ++i) {
     for (int j = 1; j < Ny_ - 1; ++j) {
       for (int k = 0; k < Nz_; ++k) {
-        size_t idx = utils::idx3d(i, j, k, Ny_, Nz_);
-
-        const double laplacian =
-            (u_curr_[utils::idx3d(utils::ip(i, Nx_), j, k, Ny_, Nz_)] -
-             2.0 * u_curr_[idx] +
-             u_curr_[utils::idx3d(utils::im(i, Nx_), j, k, Ny_, Nz_)]) *
-                invhx2_ +
-            (u_curr_[utils::idx3d(i, j + 1, k, Ny_, Nz_)] - 2.0 * u_curr_[idx] +
-             u_curr_[utils::idx3d(i, j - 1, k, Ny_, Nz_)]) *
-                invhy2_ +
-            (u_curr_[utils::idx3d(i, j, utils::ip(k, Nz_), Ny_, Nz_)] -
-             2.0 * u_curr_[idx] +
-             u_curr_[utils::idx3d(i, j, utils::im(k, Nz_), Ny_, Nz_)]) *
-                invhz2_;
-
+        const size_t idx = utils::idx3d(i, j, k, Ny_, Nz_);
+        const double laplacian = computeLaplacian(u_curr_, i, j, k);
         u_next_[idx] = 2.0 * u_curr_[idx] - u_prev_[idx] + coeff_ * laplacian;
       }
     }
@@ -100,6 +74,28 @@ void SequentialSolver::applyBoundaryConditions(std::vector<double> &u) {
       u[utils::idx3d(i, Ny_ - 1, k, Ny_, Nz_)] = 0.0;
     }
   }
+}
+
+double SequentialSolver::computeLaplacian(const std::vector<double> &u, int i,
+                                          int j, int k) const {
+  const size_t idx = utils::idx3d(i, j, k, Ny_, Nz_);
+
+  const double d2u_dx2 =
+      (u[utils::idx3d(utils::ip(i, Nx_), j, k, Ny_, Nz_)] - 2.0 * u[idx] +
+       u[utils::idx3d(utils::im(i, Nx_), j, k, Ny_, Nz_)]) *
+      invhx2_;
+
+  const double d2u_dy2 =
+      (u[utils::idx3d(i, j + 1, k, Ny_, Nz_)] - 2.0 * u[idx] +
+       u[utils::idx3d(i, j - 1, k, Ny_, Nz_)]) *
+      invhy2_;
+
+  const double d2u_dz2 =
+      (u[utils::idx3d(i, j, utils::ip(k, Nz_), Ny_, Nz_)] - 2.0 * u[idx] +
+       u[utils::idx3d(i, j, utils::im(k, Nz_), Ny_, Nz_)]) *
+      invhz2_;
+
+  return d2u_dx2 + d2u_dy2 + d2u_dz2;
 }
 
 void SequentialSolver::solve() {
