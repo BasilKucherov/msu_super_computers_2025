@@ -38,6 +38,7 @@ void SequentialSolver::initializeU0() {
 void SequentialSolver::computeU1() {
   const double coeff = 0.5 * coeff_;
 
+#pragma omp parallel for schedule(static)
   for (int i = 0; i < Nx_; ++i) {
     for (int j = 1; j < Ny_ - 1; ++j) {
       for (int k = 0; k < Nz_; ++k) {
