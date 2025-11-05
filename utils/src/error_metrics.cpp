@@ -13,6 +13,7 @@ void computeAnalyticalSolution(
   const double hy = Ly / (Ny - 1);
   const double hz = Lz / Nz;
 
+#pragma omp parallel for schedule(static)
   for (int i = 0; i < Nx; ++i) {
     double x = i * hx;
     for (int j = 0; j < Ny; ++j) {
