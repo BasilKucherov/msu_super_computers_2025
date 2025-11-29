@@ -116,7 +116,7 @@ void SequentialSolver::solve() {
             << "] * [0, " << params_.Lz << "]" << std::endl;
   std::cout << std::endl;
 
-  std::cout << std::fixed << std::setprecision(24);
+  std::cout << std::scientific << std::setprecision(16);
 
   if (params_.debug) {
     initializeU0();

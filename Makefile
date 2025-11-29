@@ -1,5 +1,6 @@
 CXX       := clang++
-INCLUDES  := -Iutils/include -Isequential/include -Iparallel_openmp/include
+MPICXX    := mpicxx
+INCLUDES  := -Iutils/include -Isequential/include -Iparallel_openmp/include -Impi/include
 LIBS      :=
 LDFLAGS   :=
 
@@ -11,6 +12,10 @@ SEQUENTIAL_OBJ := $(filter-out sequential/src/main.o,$(SEQUENTIAL_SRC:.cpp=.o))
 
 UTILS_OBJ_OMP := $(UTILS_SRC:.cpp=.omp.o)
 SEQUENTIAL_OBJ_OMP := $(filter-out sequential/src/main.omp.o,$(SEQUENTIAL_SRC:.cpp=.omp.o))
+
+MPI_SRC := mpi/src/main.cpp mpi/src/mpi_solver.cpp
+MPI_OBJ := $(filter-out mpi/src/main.mpi.o,$(MPI_SRC:.cpp=.mpi.o))
+UTILS_OBJ_MPI := $(UTILS_SRC:.cpp=.mpi.o)
 
 BUILD_DIR := build
 
@@ -39,16 +44,20 @@ endif
 
 POSTLINK := @dsymutil $@ -o $@.dSYM >/dev/null 2>&1 || true
 
-.PHONY: all clean sequential openmp profile profile-deep debug \
-        openmp-profile openmp-profile-deep trace trace-omp run run-omp
+.PHONY: all clean sequential openmp mpi profile profile-deep debug \
+        openmp-profile openmp-profile-deep mpi-profile mpi-debug \
+        trace trace-omp run run-omp run-mpi
 
-all: sequential openmp
+all: sequential openmp mpi
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 %.omp.o: %.cpp
 	$(CXX) $(CXXFLAGS) -fopenmp -c $< -o $@
+
+%.mpi.o: %.cpp
+	$(MPICXX) $(CXXFLAGS) -c $< -o $@
 
 sequential: $(BUILD_DIR)/sequential
 
@@ -94,9 +103,25 @@ trace-omp: openmp
 	  --output $(BUILD_DIR)/timeprof_omp.trace \
 	  --launch -- ./$(BUILD_DIR)/sequential_omp $(ARGS)
 
+mpi: $(BUILD_DIR)/mpi_solver
+
+$(BUILD_DIR)/mpi_solver: mpi/src/main.cpp $(MPI_OBJ) $(UTILS_OBJ_MPI) | $(BUILD_DIR)
+	$(MPICXX) $(CXXFLAGS) mpi/src/main.cpp $(MPI_OBJ) $(UTILS_OBJ_MPI) \
+		$(LDFLAGS) $(LIBS) -o $@
+	$(POSTLINK)
+
+mpi-profile:
+	$(MAKE) mpi BUILD=profile
+mpi-debug:
+	$(MAKE) mpi BUILD=debug
+
+run-mpi: mpi
+	mpirun -np $(NP) ./$(BUILD_DIR)/mpi_solver $(ARGS)
+
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 clean:
 	rm -f $(UTILS_OBJ) $(SEQUENTIAL_OBJ) $(UTILS_OBJ_OMP) $(SEQUENTIAL_OBJ_OMP)
+	rm -f $(MPI_OBJ) $(UTILS_OBJ_MPI)
 	rm -rf $(BUILD_DIR)
