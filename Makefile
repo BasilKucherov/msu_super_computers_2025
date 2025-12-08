@@ -4,6 +4,10 @@ INCLUDES  := -Iutils/include -Isequential/include -Iparallel_openmp/include -Imp
 LIBS      :=
 LDFLAGS   :=
 
+
+MPICXX_XL := mpixlC
+CXXFLAGS_PWR8 := -O3 -qarch=pwr8 -qtune=pwr8 -qhot -qsimd=auto -std=c++11 $(INCLUDES)
+
 UTILS_SRC := utils/src/arg_parser.cpp utils/src/error_metrics.cpp
 UTILS_OBJ := $(UTILS_SRC:.cpp=.o)
 
@@ -16,6 +20,9 @@ SEQUENTIAL_OBJ_OMP := $(filter-out sequential/src/main.omp.o,$(SEQUENTIAL_SRC:.c
 MPI_SRC := mpi/src/main.cpp mpi/src/mpi_solver.cpp
 MPI_OBJ := $(filter-out mpi/src/main.mpi.o,$(MPI_SRC:.cpp=.mpi.o))
 UTILS_OBJ_MPI := $(UTILS_SRC:.cpp=.mpi.o)
+
+MPI_OBJ_PWR8 := $(filter-out mpi/src/main.pwr8.o,$(MPI_SRC:.cpp=.pwr8.o))
+UTILS_OBJ_PWR8 := $(UTILS_SRC:.cpp=.pwr8.o)
 
 BUILD_DIR := build
 
@@ -44,9 +51,9 @@ endif
 
 POSTLINK := @dsymutil $@ -o $@.dSYM >/dev/null 2>&1 || true
 
-.PHONY: all clean sequential openmp mpi profile profile-deep debug \
+.PHONY: all clean sequential openmp mpi mpi_pwr8 profile profile-deep debug \
         openmp-profile openmp-profile-deep mpi-profile mpi-debug \
-        trace trace-omp run run-omp run-mpi
+        trace trace-omp run run-omp run-mpi run-mpi-pwr8
 
 all: sequential openmp mpi
 
@@ -58,6 +65,9 @@ all: sequential openmp mpi
 
 %.mpi.o: %.cpp
 	$(MPICXX) $(CXXFLAGS) -c $< -o $@
+
+%.pwr8.o: %.cpp
+	$(MPICXX_XL) $(CXXFLAGS_PWR8) -c $< -o $@
 
 sequential: $(BUILD_DIR)/sequential
 
@@ -118,10 +128,21 @@ mpi-debug:
 run-mpi: mpi
 	mpirun -np $(NP) ./$(BUILD_DIR)/mpi_solver $(ARGS)
 
+
+mpi_pwr8: $(BUILD_DIR)/mpi_solver_pwr8
+
+$(BUILD_DIR)/mpi_solver_pwr8: mpi/src/main.cpp $(MPI_OBJ_PWR8) $(UTILS_OBJ_PWR8) | $(BUILD_DIR)
+	$(MPICXX_XL) $(CXXFLAGS_PWR8) mpi/src/main.cpp $(MPI_OBJ_PWR8) $(UTILS_OBJ_PWR8) \
+		$(LDFLAGS) $(LIBS) -o $@
+
+run-mpi-pwr8: mpi_pwr8
+	mpirun -np $(NP) ./$(BUILD_DIR)/mpi_solver_pwr8 $(ARGS)
+
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 clean:
 	rm -f $(UTILS_OBJ) $(SEQUENTIAL_OBJ) $(UTILS_OBJ_OMP) $(SEQUENTIAL_OBJ_OMP)
 	rm -f $(MPI_OBJ) $(UTILS_OBJ_MPI)
+	rm -f $(MPI_OBJ_PWR8) $(UTILS_OBJ_PWR8)
 	rm -rf $(BUILD_DIR)
