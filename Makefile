@@ -10,6 +10,9 @@ CXXFLAGS_PWR8 := -O3 -qarch=pwr8 -qtune=pwr8 -qhot -qsimd=auto -std=c++11 $(INCL
 MPICXX_XL_OMP := mpixlC
 CXXFLAGS_HYBRID := -O3 -qarch=pwr8 -qtune=pwr8 -qhot -qsimd=auto -qsmp=omp -std=c++11 $(INCLUDES)
 
+MPICXX_OPENMPI := mpicxx
+CXXFLAGS_OPENMPI_HYBRID := -O3 -fopenmp -std=c++11 $(INCLUDES)
+
 UTILS_SRC := utils/src/arg_parser.cpp utils/src/error_metrics.cpp
 UTILS_OBJ := $(UTILS_SRC:.cpp=.o)
 
@@ -28,6 +31,9 @@ UTILS_OBJ_PWR8 := $(UTILS_SRC:.cpp=.pwr8.o)
 
 MPI_OBJ_HYBRID := $(filter-out mpi/src/main.hybrid.o,$(MPI_SRC:.cpp=.hybrid.o))
 UTILS_OBJ_HYBRID := $(UTILS_SRC:.cpp=.hybrid.o)
+
+MPI_OBJ_OPENMPI := $(filter-out mpi/src/main.openmpi.o,$(MPI_SRC:.cpp=.openmpi.o))
+UTILS_OBJ_OPENMPI := $(UTILS_SRC:.cpp=.openmpi.o)
 
 BUILD_DIR := build
 
@@ -56,9 +62,9 @@ endif
 
 POSTLINK := @dsymutil $@ -o $@.dSYM >/dev/null 2>&1 || true
 
-.PHONY: all clean sequential openmp mpi mpi_pwr8 mpi_hybrid_pwr8 profile profile-deep debug \
-        openmp-profile openmp-profile-deep mpi-profile mpi-debug \
-        trace trace-omp run run-omp run-mpi run-mpi-pwr8 run-mpi-hybrid
+.PHONY: all clean sequential openmp mpi mpi_pwr8 mpi_hybrid_pwr8 mpi_hybrid_pwr8_openmpi \
+        profile profile-deep debug openmp-profile openmp-profile-deep mpi-profile mpi-debug \
+        trace trace-omp run run-omp run-mpi run-mpi-pwr8 run-mpi-hybrid run-mpi-hybrid-openmpi
 
 all: sequential openmp mpi
 
@@ -76,6 +82,9 @@ all: sequential openmp mpi
 
 %.hybrid.o: %.cpp
 	$(MPICXX_XL_OMP) $(CXXFLAGS_HYBRID) -c $< -o $@
+
+%.openmpi.o: %.cpp
+	$(MPICXX_OPENMPI) $(CXXFLAGS_OPENMPI_HYBRID) -c $< -o $@
 
 sequential: $(BUILD_DIR)/sequential
 
@@ -155,6 +164,15 @@ $(BUILD_DIR)/mpi_solver_hybrid: mpi/src/main.cpp $(MPI_OBJ_HYBRID) $(UTILS_OBJ_H
 run-mpi-hybrid: mpi_hybrid_pwr8
 	OMP_NUM_THREADS=$(OMP_THREADS) mpirun -np $(NP) ./$(BUILD_DIR)/mpi_solver_hybrid $(ARGS)
 
+mpi_hybrid_pwr8_openmpi: $(BUILD_DIR)/mpi_solver_hybrid_openmpi
+
+$(BUILD_DIR)/mpi_solver_hybrid_openmpi: mpi/src/main.cpp $(MPI_OBJ_OPENMPI) $(UTILS_OBJ_OPENMPI) | $(BUILD_DIR)
+	$(MPICXX_OPENMPI) $(CXXFLAGS_OPENMPI_HYBRID) mpi/src/main.cpp $(MPI_OBJ_OPENMPI) $(UTILS_OBJ_OPENMPI) \
+		$(LDFLAGS) $(LIBS) -o $@
+
+run-mpi-hybrid-openmpi: mpi_hybrid_pwr8_openmpi
+	OMP_NUM_THREADS=$(OMP_THREADS) mpirun -np $(NP) ./$(BUILD_DIR)/mpi_solver_hybrid_openmpi $(ARGS)
+
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
@@ -163,4 +181,5 @@ clean:
 	rm -f $(MPI_OBJ) $(UTILS_OBJ_MPI)
 	rm -f $(MPI_OBJ_PWR8) $(UTILS_OBJ_PWR8)
 	rm -f $(MPI_OBJ_HYBRID) $(UTILS_OBJ_HYBRID)
+	rm -f $(MPI_OBJ_OPENMPI) $(UTILS_OBJ_OPENMPI)
 	rm -rf $(BUILD_DIR)
