@@ -4,6 +4,10 @@
 #include <iomanip>
 #include <iostream>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 namespace mpi_solver {
 
 MPISolver::MPISolver(const SolverParams &params) : params_(params) {
@@ -115,6 +119,22 @@ void MPISolver::exchangeGhosts(std::vector<double> &u) {
     }
   }
 
+  for (int i = 1; i <= local_nx_; ++i) {
+    for (int k = 1; k <= local_nz_; ++k) {
+      size_t buf_idx = (k - 1) + local_nz_ * (i - 1);
+      send_y_down_[buf_idx] = u[globalToLocalIdx(i, 1, k)];
+      send_y_up_[buf_idx] = u[globalToLocalIdx(i, local_ny_, k)];
+    }
+  }
+
+  for (int i = 1; i <= local_nx_; ++i) {
+    for (int j = 1; j <= local_ny_; ++j) {
+      size_t buf_idx = (j - 1) + local_ny_ * (i - 1);
+      send_z_back_[buf_idx] = u[globalToLocalIdx(i, j, 1)];
+      send_z_front_[buf_idx] = u[globalToLocalIdx(i, j, local_nz_)];
+    }
+  }
+
   MPI_Isend(send_x_left_.data(), send_x_left_.size(), MPI_DOUBLE, neighbors_[0],
             0, cart_comm_, &reqs[req_count++]);
   MPI_Irecv(recv_x_right_.data(), recv_x_right_.size(), MPI_DOUBLE,
@@ -125,14 +145,6 @@ void MPISolver::exchangeGhosts(std::vector<double> &u) {
   MPI_Irecv(recv_x_left_.data(), recv_x_left_.size(), MPI_DOUBLE, neighbors_[0],
             1, cart_comm_, &reqs[req_count++]);
 
-  for (int i = 1; i <= local_nx_; ++i) {
-    for (int k = 1; k <= local_nz_; ++k) {
-      size_t buf_idx = (k - 1) + local_nz_ * (i - 1);
-      send_y_down_[buf_idx] = u[globalToLocalIdx(i, 1, k)];
-      send_y_up_[buf_idx] = u[globalToLocalIdx(i, local_ny_, k)];
-    }
-  }
-
   MPI_Isend(send_y_down_.data(), send_y_down_.size(), MPI_DOUBLE, neighbors_[2],
             2, cart_comm_, &reqs[req_count++]);
   MPI_Irecv(recv_y_up_.data(), recv_y_up_.size(), MPI_DOUBLE, neighbors_[3], 2,
@@ -142,14 +154,6 @@ void MPISolver::exchangeGhosts(std::vector<double> &u) {
             cart_comm_, &reqs[req_count++]);
   MPI_Irecv(recv_y_down_.data(), recv_y_down_.size(), MPI_DOUBLE, neighbors_[2],
             3, cart_comm_, &reqs[req_count++]);
-
-  for (int i = 1; i <= local_nx_; ++i) {
-    for (int j = 1; j <= local_ny_; ++j) {
-      size_t buf_idx = (j - 1) + local_ny_ * (i - 1);
-      send_z_back_[buf_idx] = u[globalToLocalIdx(i, j, 1)];
-      send_z_front_[buf_idx] = u[globalToLocalIdx(i, j, local_nz_)];
-    }
-  }
 
   MPI_Isend(send_z_back_.data(), send_z_back_.size(), MPI_DOUBLE, neighbors_[4],
             4, cart_comm_, &reqs[req_count++]);
@@ -228,6 +232,9 @@ void MPISolver::initializeU0() {
 void MPISolver::computeU1() {
   const double coeff = 0.5 * coeff_;
 
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
   for (int i = 1; i <= local_nx_; ++i) {
     for (int j = 1; j <= local_ny_; ++j) {
       int global_j = global_j_start_ + (j - 1);
@@ -247,6 +254,9 @@ void MPISolver::computeU1() {
 }
 
 void MPISolver::computeTimeStep() {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
   for (int i = 1; i <= local_nx_; ++i) {
     for (int j = 1; j <= local_ny_; ++j) {
       int global_j = global_j_start_ + (j - 1);
