@@ -60,6 +60,16 @@ private:
 
   void exchangeGhosts(std::vector<double> &u);
 
+  void packSendBuffers(const std::vector<double> &u);
+  void startAsyncExchange(MPI_Request *reqs, int &req_count);
+  void unpackRecvBuffers(std::vector<double> &u);
+  void computeInterior(std::vector<double> &u_next,
+                       const std::vector<double> &u_curr,
+                       const std::vector<double> &u_prev, double coeff);
+  void computeBoundaryShell(std::vector<double> &u_next,
+                            const std::vector<double> &u_curr,
+                            const std::vector<double> &u_prev, double coeff);
+
   inline size_t globalToLocalIdx(int i, int j, int k) const {
     return k + local_nz_ghost_ * (j + local_ny_ghost_ * i);
   }

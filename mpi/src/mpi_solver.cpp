@@ -202,6 +202,165 @@ void MPISolver::exchangeGhosts(std::vector<double> &u) {
   }
 }
 
+void MPISolver::packSendBuffers(const std::vector<double> &u) {
+  for (int j = 1; j <= local_ny_; ++j) {
+    for (int k = 1; k <= local_nz_; ++k) {
+      size_t buf_idx = (k - 1) + local_nz_ * (j - 1);
+      send_x_left_[buf_idx] = u[globalToLocalIdx(1, j, k)];
+      send_x_right_[buf_idx] = u[globalToLocalIdx(local_nx_, j, k)];
+    }
+  }
+
+  for (int i = 1; i <= local_nx_; ++i) {
+    for (int k = 1; k <= local_nz_; ++k) {
+      size_t buf_idx = (k - 1) + local_nz_ * (i - 1);
+      send_y_down_[buf_idx] = u[globalToLocalIdx(i, 1, k)];
+      send_y_up_[buf_idx] = u[globalToLocalIdx(i, local_ny_, k)];
+    }
+  }
+
+  for (int i = 1; i <= local_nx_; ++i) {
+    for (int j = 1; j <= local_ny_; ++j) {
+      size_t buf_idx = (j - 1) + local_ny_ * (i - 1);
+      send_z_back_[buf_idx] = u[globalToLocalIdx(i, j, 1)];
+      send_z_front_[buf_idx] = u[globalToLocalIdx(i, j, local_nz_)];
+    }
+  }
+}
+
+void MPISolver::startAsyncExchange(MPI_Request *reqs, int &req_count) {
+  req_count = 0;
+
+  MPI_Isend(send_x_left_.data(), send_x_left_.size(), MPI_DOUBLE, neighbors_[0],
+            0, cart_comm_, &reqs[req_count++]);
+  MPI_Irecv(recv_x_right_.data(), recv_x_right_.size(), MPI_DOUBLE,
+            neighbors_[1], 0, cart_comm_, &reqs[req_count++]);
+
+  MPI_Isend(send_x_right_.data(), send_x_right_.size(), MPI_DOUBLE,
+            neighbors_[1], 1, cart_comm_, &reqs[req_count++]);
+  MPI_Irecv(recv_x_left_.data(), recv_x_left_.size(), MPI_DOUBLE, neighbors_[0],
+            1, cart_comm_, &reqs[req_count++]);
+
+  MPI_Isend(send_y_down_.data(), send_y_down_.size(), MPI_DOUBLE, neighbors_[2],
+            2, cart_comm_, &reqs[req_count++]);
+  MPI_Irecv(recv_y_up_.data(), recv_y_up_.size(), MPI_DOUBLE, neighbors_[3], 2,
+            cart_comm_, &reqs[req_count++]);
+
+  MPI_Isend(send_y_up_.data(), send_y_up_.size(), MPI_DOUBLE, neighbors_[3], 3,
+            cart_comm_, &reqs[req_count++]);
+  MPI_Irecv(recv_y_down_.data(), recv_y_down_.size(), MPI_DOUBLE, neighbors_[2],
+            3, cart_comm_, &reqs[req_count++]);
+
+  MPI_Isend(send_z_back_.data(), send_z_back_.size(), MPI_DOUBLE, neighbors_[4],
+            4, cart_comm_, &reqs[req_count++]);
+  MPI_Irecv(recv_z_front_.data(), recv_z_front_.size(), MPI_DOUBLE,
+            neighbors_[5], 4, cart_comm_, &reqs[req_count++]);
+
+  MPI_Isend(send_z_front_.data(), send_z_front_.size(), MPI_DOUBLE,
+            neighbors_[5], 5, cart_comm_, &reqs[req_count++]);
+  MPI_Irecv(recv_z_back_.data(), recv_z_back_.size(), MPI_DOUBLE, neighbors_[4],
+            5, cart_comm_, &reqs[req_count++]);
+}
+
+void MPISolver::unpackRecvBuffers(std::vector<double> &u) {
+  for (int j = 1; j <= local_ny_; ++j) {
+    for (int k = 1; k <= local_nz_; ++k) {
+      size_t buf_idx = (k - 1) + local_nz_ * (j - 1);
+      u[globalToLocalIdx(0, j, k)] = recv_x_left_[buf_idx];
+      u[globalToLocalIdx(local_nx_ + 1, j, k)] = recv_x_right_[buf_idx];
+    }
+  }
+
+  if (neighbors_[2] != MPI_PROC_NULL) {
+    for (int i = 1; i <= local_nx_; ++i) {
+      for (int k = 1; k <= local_nz_; ++k) {
+        size_t buf_idx = (k - 1) + local_nz_ * (i - 1);
+        u[globalToLocalIdx(i, 0, k)] = recv_y_down_[buf_idx];
+      }
+    }
+  }
+
+  if (neighbors_[3] != MPI_PROC_NULL) {
+    for (int i = 1; i <= local_nx_; ++i) {
+      for (int k = 1; k <= local_nz_; ++k) {
+        size_t buf_idx = (k - 1) + local_nz_ * (i - 1);
+        u[globalToLocalIdx(i, local_ny_ + 1, k)] = recv_y_up_[buf_idx];
+      }
+    }
+  }
+
+  for (int i = 1; i <= local_nx_; ++i) {
+    for (int j = 1; j <= local_ny_; ++j) {
+      size_t buf_idx = (j - 1) + local_ny_ * (i - 1);
+      u[globalToLocalIdx(i, j, 0)] = recv_z_back_[buf_idx];
+      u[globalToLocalIdx(i, j, local_nz_ + 1)] = recv_z_front_[buf_idx];
+    }
+  }
+}
+
+void MPISolver::computeInterior(std::vector<double> &u_next,
+                                const std::vector<double> &u_curr,
+                                const std::vector<double> &u_prev,
+                                double coeff) {
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
+  for (int i = 2; i <= local_nx_ - 1; ++i) {
+    for (int j = 2; j <= local_ny_ - 1; ++j) {
+      int global_j = global_j_start_ + (j - 1);
+      if (global_j == 0 || global_j == Ny_ - 1)
+        continue;
+
+      for (int k = 2; k <= local_nz_ - 1; ++k) {
+        size_t idx = globalToLocalIdx(i, j, k);
+        const double laplacian = computeLaplacian(u_curr, i, j, k);
+        u_next[idx] = 2.0 * u_curr[idx] - u_prev[idx] + coeff * laplacian;
+      }
+    }
+  }
+}
+
+void MPISolver::computeBoundaryShell(std::vector<double> &u_next,
+                                     const std::vector<double> &u_curr,
+                                     const std::vector<double> &u_prev,
+                                     double coeff) {
+  auto compute_point = [&](int i, int j, int k) {
+    int global_j = global_j_start_ + (j - 1);
+    if (global_j == 0 || global_j == Ny_ - 1)
+      return;
+    size_t idx = globalToLocalIdx(i, j, k);
+    const double laplacian = computeLaplacian(u_curr, i, j, k);
+    u_next[idx] = 2.0 * u_curr[idx] - u_prev[idx] + coeff * laplacian;
+  };
+
+  for (int j = 1; j <= local_ny_; ++j) {
+    for (int k = 1; k <= local_nz_; ++k) {
+      compute_point(1, j, k);
+      if (local_nx_ > 1) {
+        compute_point(local_nx_, j, k);
+      }
+    }
+  }
+
+  for (int i = 2; i <= local_nx_ - 1; ++i) {
+    for (int k = 1; k <= local_nz_; ++k) {
+      compute_point(i, 1, k);
+      if (local_ny_ > 1) {
+        compute_point(i, local_ny_, k);
+      }
+    }
+  }
+
+  for (int i = 2; i <= local_nx_ - 1; ++i) {
+    for (int j = 2; j <= local_ny_ - 1; ++j) {
+      compute_point(i, j, 1);
+      if (local_nz_ > 1) {
+        compute_point(i, j, local_nz_);
+      }
+    }
+  }
+}
+
 void MPISolver::computeLocalAnalyticalSolution(
     std::vector<double> &u_analytical, double t) {
   for (int i = 1; i <= local_nx_; ++i) {
@@ -249,29 +408,19 @@ void MPISolver::computeU1() {
     }
   }
 
-  exchangeGhosts(u_curr_);
   applyBoundaryConditions(u_curr_);
 }
 
 void MPISolver::computeTimeStep() {
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-  for (int i = 1; i <= local_nx_; ++i) {
-    for (int j = 1; j <= local_ny_; ++j) {
-      int global_j = global_j_start_ + (j - 1);
-      if (global_j == 0 || global_j == Ny_ - 1)
-        continue;
+  MPI_Request reqs[12];
+  int req_count;
 
-      for (int k = 1; k <= local_nz_; ++k) {
-        size_t idx = globalToLocalIdx(i, j, k);
-        const double laplacian = computeLaplacian(u_curr_, i, j, k);
-        u_next_[idx] = 2.0 * u_curr_[idx] - u_prev_[idx] + coeff_ * laplacian;
-      }
-    }
-  }
-
-  exchangeGhosts(u_next_);
+  packSendBuffers(u_curr_);
+  startAsyncExchange(reqs, req_count);
+  computeInterior(u_next_, u_curr_, u_prev_, coeff_);
+  MPI_Waitall(req_count, reqs, MPI_STATUSES_IGNORE);
+  unpackRecvBuffers(u_curr_);
+  computeBoundaryShell(u_next_, u_curr_, u_prev_, coeff_);
   applyBoundaryConditions(u_next_);
 
   u_prev_.swap(u_curr_);
