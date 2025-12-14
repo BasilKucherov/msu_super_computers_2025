@@ -7,6 +7,25 @@
 
 namespace mpi_solver {
 
+struct ProcessTimings {
+  double pack_buffers = 0.0;
+  double start_async = 0.0;
+  double compute_interior = 0.0;
+  double wait_comm = 0.0;
+  double unpack_buffers = 0.0;
+  double compute_boundary = 0.0;
+  double apply_bc = 0.0;
+  double total_step = 0.0;
+  int num_steps = 0;
+
+  void reset() {
+    pack_buffers = start_async = compute_interior = 0.0;
+    wait_comm = unpack_buffers = compute_boundary = apply_bc = 0.0;
+    total_step = 0.0;
+    num_steps = 0;
+  }
+};
+
 class MPISolver {
 public:
   explicit MPISolver(const SolverParams &params);
@@ -47,6 +66,8 @@ private:
   std::vector<double> send_z_back_, send_z_front_;
   std::vector<double> recv_z_back_, recv_z_front_;
 
+  ProcessTimings timings_;
+
   void setupTopology();
   void computeLocalBounds();
   void allocateBuffers();
@@ -83,6 +104,8 @@ private:
                               const std::vector<double> &u_analytical);
   double computeLocalSumSquaredError(const std::vector<double> &u_numerical,
                                      const std::vector<double> &u_analytical);
+
+  void printProfilingResults();
 };
 
 } // namespace mpi_solver

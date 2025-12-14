@@ -1,6 +1,7 @@
 #include "mpi_solver.hpp"
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <iomanip>
 #include <iostream>
 
@@ -412,19 +413,45 @@ void MPISolver::computeU1() {
 }
 
 void MPISolver::computeTimeStep() {
+  auto t0 = std::chrono::high_resolution_clock::now();
+
   MPI_Request reqs[12];
   int req_count;
 
+  auto t1 = std::chrono::high_resolution_clock::now();
   packSendBuffers(u_curr_);
+  auto t2 = std::chrono::high_resolution_clock::now();
+
   startAsyncExchange(reqs, req_count);
+  auto t3 = std::chrono::high_resolution_clock::now();
+
   computeInterior(u_next_, u_curr_, u_prev_, coeff_);
+  auto t4 = std::chrono::high_resolution_clock::now();
+
   MPI_Waitall(req_count, reqs, MPI_STATUSES_IGNORE);
+  auto t5 = std::chrono::high_resolution_clock::now();
+
   unpackRecvBuffers(u_curr_);
+  auto t6 = std::chrono::high_resolution_clock::now();
+
   computeBoundaryShell(u_next_, u_curr_, u_prev_, coeff_);
+  auto t7 = std::chrono::high_resolution_clock::now();
+
   applyBoundaryConditions(u_next_);
+  auto t8 = std::chrono::high_resolution_clock::now();
 
   u_prev_.swap(u_curr_);
   u_curr_.swap(u_next_);
+
+  timings_.pack_buffers += std::chrono::duration<double>(t2 - t1).count();
+  timings_.start_async += std::chrono::duration<double>(t3 - t2).count();
+  timings_.compute_interior += std::chrono::duration<double>(t4 - t3).count();
+  timings_.wait_comm += std::chrono::duration<double>(t5 - t4).count();
+  timings_.unpack_buffers += std::chrono::duration<double>(t6 - t5).count();
+  timings_.compute_boundary += std::chrono::duration<double>(t7 - t6).count();
+  timings_.apply_bc += std::chrono::duration<double>(t8 - t7).count();
+  timings_.total_step += std::chrono::duration<double>(t8 - t0).count();
+  timings_.num_steps++;
 }
 
 void MPISolver::applyBoundaryConditions(std::vector<double> &u) {
@@ -590,6 +617,8 @@ void MPISolver::solve() {
       std::cout << "Final errors - max_error: " << global_max
                 << ", rmse: " << global_rmse << std::endl;
     }
+
+    printProfilingResults();
   } else {
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -624,6 +653,142 @@ void MPISolver::solve() {
                 << " - max_error: " << global_max << ", rmse: " << global_rmse
                 << std::endl;
     }
+
+    printProfilingResults();
+  }
+}
+
+void MPISolver::printProfilingResults() {
+  struct TimingData {
+    double pack_buffers;
+    double start_async;
+    double compute_interior;
+    double wait_comm;
+    double unpack_buffers;
+    double compute_boundary;
+    double apply_bc;
+    double total_step;
+    int num_steps;
+    int rank;
+    int local_nx;
+    int local_ny;
+    int local_nz;
+  };
+
+  TimingData local_data;
+  local_data.pack_buffers = timings_.pack_buffers;
+  local_data.start_async = timings_.start_async;
+  local_data.compute_interior = timings_.compute_interior;
+  local_data.wait_comm = timings_.wait_comm;
+  local_data.unpack_buffers = timings_.unpack_buffers;
+  local_data.compute_boundary = timings_.compute_boundary;
+  local_data.apply_bc = timings_.apply_bc;
+  local_data.total_step = timings_.total_step;
+  local_data.num_steps = timings_.num_steps;
+  local_data.rank = rank_;
+  local_data.local_nx = local_nx_;
+  local_data.local_ny = local_ny_;
+  local_data.local_nz = local_nz_;
+
+  std::vector<TimingData> all_data(nprocs_);
+
+  MPI_Gather(&local_data, sizeof(TimingData), MPI_BYTE, all_data.data(),
+             sizeof(TimingData), MPI_BYTE, 0, cart_comm_);
+
+  if (rank_ == 0) {
+    std::cout << std::endl;
+    std::cout << "============================================================="
+                 "===================\n";
+    std::cout << "PROFILING RESULTS (per-process breakdown)\n";
+    std::cout << "============================================================="
+                 "===================\n";
+    std::cout << std::fixed << std::setprecision(4);
+
+    std::cout << std::setw(4) << "Rank" << std::setw(12) << "LocalGrid"
+              << std::setw(10) << "PackBuf" << std::setw(10) << "StartAsync"
+              << std::setw(10) << "Interior" << std::setw(10) << "WaitComm"
+              << std::setw(10) << "Unpack" << std::setw(10) << "Boundary"
+              << std::setw(10) << "ApplyBC" << std::setw(10) << "Total"
+              << std::endl;
+    std::cout << std::string(106, '-') << std::endl;
+
+    double sum_pack = 0, sum_async = 0, sum_interior = 0, sum_wait = 0;
+    double sum_unpack = 0, sum_boundary = 0, sum_bc = 0, sum_total = 0;
+    double max_wait = 0, min_wait = 1e9;
+    double max_interior = 0, min_interior = 1e9;
+    int slowest_rank = -1, fastest_rank = -1;
+
+    for (int i = 0; i < nprocs_; ++i) {
+      const TimingData &d = all_data[i];
+
+      char grid_str[32];
+      snprintf(grid_str, sizeof(grid_str), "%dx%dx%d", d.local_nx, d.local_ny,
+               d.local_nz);
+
+      std::cout << std::setw(4) << d.rank << std::setw(12) << grid_str
+                << std::setw(10) << d.pack_buffers << std::setw(10)
+                << d.start_async << std::setw(10) << d.compute_interior
+                << std::setw(10) << d.wait_comm << std::setw(10)
+                << d.unpack_buffers << std::setw(10) << d.compute_boundary
+                << std::setw(10) << d.apply_bc << std::setw(10) << d.total_step
+                << std::endl;
+
+      sum_pack += d.pack_buffers;
+      sum_async += d.start_async;
+      sum_interior += d.compute_interior;
+      sum_wait += d.wait_comm;
+      sum_unpack += d.unpack_buffers;
+      sum_boundary += d.compute_boundary;
+      sum_bc += d.apply_bc;
+      sum_total += d.total_step;
+
+      if (d.wait_comm > max_wait) {
+        max_wait = d.wait_comm;
+        slowest_rank = d.rank;
+      }
+      if (d.wait_comm < min_wait) {
+        min_wait = d.wait_comm;
+        fastest_rank = d.rank;
+      }
+      if (d.compute_interior > max_interior)
+        max_interior = d.compute_interior;
+      if (d.compute_interior < min_interior)
+        min_interior = d.compute_interior;
+    }
+
+    std::cout << std::string(106, '-') << std::endl;
+
+    std::cout << std::setw(4) << "AVG" << std::setw(12) << "" << std::setw(10)
+              << sum_pack / nprocs_ << std::setw(10) << sum_async / nprocs_
+              << std::setw(10) << sum_interior / nprocs_ << std::setw(10)
+              << sum_wait / nprocs_ << std::setw(10) << sum_unpack / nprocs_
+              << std::setw(10) << sum_boundary / nprocs_ << std::setw(10)
+              << sum_bc / nprocs_ << std::setw(10) << sum_total / nprocs_
+              << std::endl;
+
+    std::cout << std::endl;
+    std::cout << "SUMMARY:\n";
+    std::cout << "  Interior compute: min=" << min_interior
+              << "s, max=" << max_interior
+              << "s, imbalance=" << (max_interior / min_interior - 1.0) * 100
+              << "%\n";
+    std::cout << "  Wait for comm:    min=" << min_wait << "s (rank "
+              << fastest_rank << "), max=" << max_wait << "s (rank "
+              << slowest_rank << ")\n";
+
+    double avg_interior = sum_interior / nprocs_;
+    double avg_wait = sum_wait / nprocs_;
+    double overlap_efficiency = 0.0;
+    if (avg_interior > 0) {
+      overlap_efficiency =
+          std::min(1.0, avg_interior / (avg_interior + avg_wait)) * 100;
+    }
+    std::cout << "  Comm/Compute overlap efficiency: " << overlap_efficiency
+              << "%\n";
+    std::cout << "  (100% = communication fully hidden, lower = waiting for "
+                 "network)\n";
+    std::cout << "============================================================="
+                 "===================\n";
   }
 }
 
